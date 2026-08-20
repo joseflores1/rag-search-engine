@@ -1,6 +1,6 @@
 import argparse
 
-from lib.keyword_search import build_command, search_command
+from lib.keyword_search import build_command, search_command, tf_command
 
 
 def main() -> None:
@@ -11,6 +11,10 @@ def main() -> None:
     search_parser.add_argument("query", type=str, help="Search query")
 
     subparsers.add_parser("build", help="Build the inverted index")
+
+    term_parser = subparsers.add_parser("tf", help="Search term frequency given document id and term")
+    term_parser.add_argument("id", type=int, help="Document ID")
+    term_parser.add_argument("term", type=str, help="Term to search")
 
     args = parser.parse_args()
 
@@ -25,6 +29,10 @@ def main() -> None:
             print("Building inverted index...")
             build_command()
             print("Inverted index built successfully.")
+        case "tf":
+            id, term = args.id, args.term
+            print("Retrieving term frequency...")
+            tf_command(id, term)
         case _:
             parser.print_help()
 
