@@ -1,7 +1,7 @@
+import math
 import os
 import pickle
 import string
-import sys
 from collections import Counter, defaultdict
 
 from nltk.stem import PorterStemmer
@@ -9,6 +9,7 @@ from nltk.stem import PorterStemmer
 from .search_utils import CACHE_DIR, DEFAULT_SEARCH_LIMIT, STOPWORDS_PATH, load_movies
 
 
+# common
 def preprocess_text(text: str) -> str:
     text = text.lower()
 
@@ -16,12 +17,14 @@ def preprocess_text(text: str) -> str:
 
     return text
 
+
 def load_stopwords() -> list[str]:
     with open(STOPWORDS_PATH, "r") as f:
         return [preprocess_text(word) for word in f.read().splitlines()]
 
 
 STOPWORDS = load_stopwords()
+
 
 def tokenize_text(text: str) -> list[str]:
     text = preprocess_text(text)
@@ -42,11 +45,13 @@ def tokenize_text(text: str) -> list[str]:
 
     return stemmed_words
 
+
 def tokenize_term(term: str) -> str:
     tokenized_term = tokenize_text(term)
     if len(tokenized_term) != 1:
-        raise RuntimeError("tokenization of single term did not produce only one token")
-    return tokenized_term
+        raise ValueError("term must be a single token")
+    return tokenized_term[0]
+
 
 # search command
 def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
@@ -64,7 +69,6 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
         docs_ids = index.get_documents(token)
 
         for id in docs_ids:
-
             if id in seen_docs:
                 continue
             seen_docs.add(id)
@@ -72,7 +76,7 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
             results.append(index.docmap[id])
             if len(results) == limit:
                 return results
-            
+
     return results
 
 
@@ -81,17 +85,16 @@ class InvertedIndex:
     def __init__(self) -> None:
         self.index = defaultdict(set)
         self.docmap: dict[int, dict] = {}
-        self.term_frequencies = defaultdict(Counter) 
+        self.term_frequencies = defaultdict(Counter)
         self.index_path = os.path.join(CACHE_DIR, "index.pkl")
         self.docmap_path = os.path.join(CACHE_DIR, "docmap.pkl")
-        self.term_frequencies_path = os.path.join(CACHE_DIR, "term_frequencies.pkl")
+        self.tf_path = os.path.join(CACHE_DIR, "term_frequencies.pkl")
 
     def __add_document(self, doc_id: int, text: str) -> None:
         tokens = tokenize_text(text)
-        for token in tokens:
+        for token in set(tokens):
             self.index[token].add(doc_id)
-            self.term_frequencies[doc_id] += {token:1}
-
+        self.term_frequencies[doc_id].update(tokens)
 
     def get_documents(self, term: str) -> list[int]:
         documents_ids = self.index[term]
@@ -115,20 +118,30 @@ class InvertedIndex:
         with open(self.docmap_path, "wb") as f:
             pickle.dump(self.docmap, f)
 
-        with open(self.term_frequencies_path, "wb") as f:
+        with open(self.tf_path, "wb") as f:
             pickle.dump(self.term_frequencies, f)
 
-
     def load(self) -> None:
-            with open(self.index_path, "rb") as f:
-                self.index = pickle.load(f)
-            with open(self.docmap_path, "rb") as f:
-                self.docmap = pickle.load(f)
-            with open(self.term_frequencies_path, "rb") as f:
-                self.term_frequencies = pickle.load(f)
+        with open(self.index_path, "rb") as f:
+            self.index = pickle.load(f)
+        with open(self.docmap_path, "rb") as f:
+            self.docmap = pickle.load(f)
+        with open(self.tf_path, "rb") as f:
+            self.term_frequencies = pickle.load(f)
 
     def get_tf(self, doc_id: int, term: str) -> int:
         return self.term_frequencies[doc_id][term]
+
+    def get_idf(self, term: str) -> float:
+        total_doc_count = len(self.docmap)
+        term_match_doc_count = len(self.index[term])
+        idf = math.log((total_doc_count + 1) / (term_match_doc_count + 1))
+        return idf
+
+    def get_tf_idf(self, doc_id: int, term: str) -> float:
+        tf = self.get_tf(doc_id, term)
+        idf = self.get_idf(term)
+        return tf * idf
 
 # build command
 def build_command() -> None:
@@ -136,10 +149,23 @@ def build_command() -> None:
     idx.build()
     idx.save()
 
+
 # term frequency command
-def tf_command(doc_id: int, term: str) -> None:
+def tf_command(doc_id: int, term: str) -> int:
     index = InvertedIndex()
     index.load()
-    tokenized_term = tokenize_term(term)
-    term_freq = index.term_frequencies[doc_id][tokenized_term[0]]
-    print(f"'{term}' appears {term_freq} times in document {doc_id}")
+    return index.get_tf(doc_id, tokenize_term(term))
+
+
+# inverse document frequency command
+def idf_command(term: str) -> float:
+    idx = InvertedIndex()
+    idx.load()
+    idf = idx.get_idf(tokenize_term(term))
+    return idf
+
+# TF-IDF command
+def tf_idf_command(doc_id: int, term: str) -> float:
+    idx = InvertedIndex()
+    idx.load()
+    return idx.get_tf_idf(doc_id, tokenize_term(term))
