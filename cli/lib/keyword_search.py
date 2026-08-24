@@ -35,6 +35,7 @@ def load_stopwords() -> list[str]:
 
 STOPWORDS: list[str] = load_stopwords()
 
+
 def tokenize_text(text: str) -> list[str]:
     text = preprocess_text(text)
     tokens = text.split()
@@ -54,11 +55,13 @@ def tokenize_text(text: str) -> list[str]:
 
     return stemmed_words
 
+
 def tokenize_term(term: str) -> str:
     tokenized_term = tokenize_text(term)
     if len(tokenized_term) != 1:
         raise ValueError("term must be a single token")
     return tokenized_term[0]
+
 
 class InvertedIndex:
     def __init__(self) -> None:
@@ -138,7 +141,9 @@ class InvertedIndex:
         bm25_idf = math.log((n_docs - df + 0.5) / (df + 0.5) + 1)
         return bm25_idf
 
-    def get_bm25_tf(self, doc_id: int, term: str, k1: float = BM25_K1, b: float = BM25_B) -> float:
+    def get_bm25_tf(
+        self, doc_id: int, term: str, k1: float = BM25_K1, b: float = BM25_B
+    ) -> float:
         tf = self.get_tf(doc_id, term)
         doc_len = self.doc_lengths.get(doc_id, 0)
         avg_len = self.__get_avg_doc_length()
@@ -156,7 +161,9 @@ class InvertedIndex:
         bm25_idf = self.get_bm25_idf(term)
         return bm25_tf * bm25_idf
 
-    def bm25_search(self, query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[SearchResult]:
+    def bm25_search(
+        self, query: str, limit: int = DEFAULT_SEARCH_LIMIT
+    ) -> list[SearchResult]:
         tokens = tokenize_text(query)
         scores: dict[int, float] = {}
 
@@ -166,14 +173,20 @@ class InvertedIndex:
                 score += self.bm25(doc_id, token)
             scores[doc_id] = score
 
-        sorted_docs = sorted(scores.items(), key = lambda x: x[1], reverse=True)
+        sorted_docs = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         results: list[SearchResult] = []
 
         for doc_id, score in sorted_docs[:limit]:
             doc = self.docmap[doc_id]
-            formated_result = format_search_result(doc_id= doc["id"], title= doc["title"], document = doc["description"], score=score)
+            formated_result = format_search_result(
+                doc_id=doc["id"],
+                title=doc["title"],
+                document=doc["description"],
+                score=score,
+            )
             results.append(formated_result)
         return results
+
 
 # search command
 def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[Movie]:
@@ -204,12 +217,16 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[Movie]
 
     return results
 
+
 # bm25 search command
-def bm25_search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[SearchResult]:
+def bm25_search_command(
+    query: str, limit: int = DEFAULT_SEARCH_LIMIT
+) -> list[SearchResult]:
     idx = InvertedIndex()
     idx.load()
     docs = idx.bm25_search(query, limit)
     return docs
+
 
 # build command
 def build_command() -> None:
@@ -232,11 +249,13 @@ def idf_command(term: str) -> float:
     idf = idx.get_idf(tokenize_term(term))
     return idf
 
+
 # TF-IDF command
 def tf_idf_command(doc_id: int, term: str) -> float:
     idx = InvertedIndex()
     idx.load()
     return idx.get_tf_idf(doc_id, tokenize_term(term))
+
 
 # BM"% IDF command
 def bm25_idf_command(term: str) -> float:
@@ -244,7 +263,10 @@ def bm25_idf_command(term: str) -> float:
     idx.load()
     return idx.get_bm25_idf(tokenize_term(term))
 
-def bm25_tf_command(doc_id: int, term: str, k1: float = BM25_K1, b: float = BM25_B) -> float:
+
+def bm25_tf_command(
+    doc_id: int, term: str, k1: float = BM25_K1, b: float = BM25_B
+) -> float:
     idx = InvertedIndex()
     idx.load()
     return idx.get_bm25_tf(doc_id, tokenize_term(term), k1, b)
