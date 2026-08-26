@@ -2,6 +2,8 @@ import json
 import os
 from typing import Any, TypedDict
 
+from dotenv import load_dotenv
+
 
 class Movie(TypedDict):
     id: int
@@ -51,6 +53,10 @@ DEFAULT_SEMANTIC_CHUNK_SIZE = 4
 MOVIE_EMBEDDINGS_PATH = os.path.join(CACHE_DIR, "movie_embeddings.npy")
 CHUNK_EMBEDDINGS_PATH = os.path.join(CACHE_DIR, "chunk_embeddings.npy")
 CHUNK_METADATA_PATH = os.path.join(CACHE_DIR, "chunk_metadata.json")
+
+ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
+load_dotenv(ENV_PATH)
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 
 def load_movies() -> list[Movie]:
