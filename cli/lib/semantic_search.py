@@ -13,9 +13,13 @@ from .search_utils import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_SEARCH_LIMIT,
     DEFAULT_SEMANTIC_CHUNK_SIZE,
+    DOCUMENT_PREVIEW_LENGTH,
     HF_TOKEN,
     MOVIE_EMBEDDINGS_PATH,
+    SCORE_PRECISION,
     Movie,
+    SearchResult,
+    format_search_result,
     load_movies,
 )
 
@@ -32,6 +36,12 @@ class ChunkMetadata(TypedDict):
     movie_idx: int
     chunk_idx: int
     total_chunks: int
+
+
+class ChunkScore(TypedDict):
+    movie_idx: int
+    chunk_idx: int
+    score: float
 
 
 class SemanticSearch:
@@ -191,6 +201,45 @@ class ChunkedSemanticSearch(SemanticSearch):
 
         return self.chunk_embeddings
 
+    def search_chunks(self, query: str, limit: int = 10) -> list[SearchResult]:
+
+        if self.chunk_embeddings is None or self.chunk_metadata is None:
+            raise ValueError("No chunk embeddings loaded. Call load_or_create_chunk embeddings first")
+
+        embed_query = self.generate_embedding(query)
+        chunks: list[ChunkScore] = [
+            {
+                "chunk_idx": self.chunk_metadata[i]["chunk_idx"],
+                "movie_idx": self.chunk_metadata[i]["movie_idx"],
+                "score": cosine_similarity(embed_query, self.chunk_embeddings[i]),
+            }
+            for i in range(len(self.chunk_embeddings))
+        ]
+
+        best_scores: dict[int, float] = {}
+        for chunk in chunks:
+            idx = chunk["movie_idx"]
+            score = chunk["score"]
+            if idx not in best_scores or best_scores[idx] < score:
+                best_scores[idx] = score
+
+        top_docs = sorted(best_scores.items(), key=lambda x: x[1], reverse=True)[:limit]
+
+        if self.documents is None:
+            raise ValueError("No documents loaded. Call load_or_create_chunk_embeddings first")
+
+        results: list[SearchResult] = [
+            format_search_result(
+                idx,
+                self.document_map[idx]["title"],
+                self.document_map[idx]["description"][:DOCUMENT_PREVIEW_LENGTH],
+                round(score, SCORE_PRECISION),
+            )
+            for idx, score in top_docs if idx is not None
+        ]
+
+        return results
+
 
 # Commands
 def verify_model() -> None:
@@ -237,33 +286,6 @@ def semantic_search(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> None:
         print(f"  {res['description'][:100]}\n")
 
 
-def fixed_size_chunking(
-    text: str, semantic: bool, chunk_size: int, overlap: int = DEFAULT_CHUNK_OVERLAP
-) -> list[str]:
-
-    if chunk_size <= 0:
-        raise ValueError("chunk size must be greater than 0")
-
-    if overlap < 0:
-        raise ValueError("overlap must be equal or greater than 0")
-
-    if semantic:
-        sentences = re.split(r"(?<=[.!?])\s+", text)
-        chunks = [
-            " ".join(sentences[i : i + chunk_size])
-            for i in range(0, len(sentences), chunk_size - overlap)
-            if len(sentences[i : i + chunk_size]) > overlap
-        ]
-    else:
-        words = text.split()
-        chunks = [
-            " ".join(words[i : i + chunk_size])
-            for i in range(0, len(words), chunk_size - overlap)
-        ]
-
-    return chunks
-
-
 def chunk_text(
     text: str, semantic: bool, chunk_size: int, overlap: int = DEFAULT_CHUNK_OVERLAP
 ) -> None:
@@ -282,6 +304,13 @@ def embed_chunks() -> EmbeddingArray:
     return chunk_embeddings
 
 
+def search_chunked(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict[str, str | list[SearchResult]]:
+    movies = load_movies()
+    searcher = ChunkedSemanticSearch()
+    searcher.load_or_create_chunk_embeddings(movies)
+    results = searcher.search_chunks(query, limit)
+    return {"query": query, "results": results}
+
 # Score metric
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
     dot_product = np.dot(vec1, vec2)
@@ -292,3 +321,37 @@ def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
         return 0.0
 
     return dot_product / (norm1 * norm2)
+
+# Helper
+def fixed_size_chunking(
+    text: str, semantic: bool, chunk_size: int, overlap: int = DEFAULT_CHUNK_OVERLAP
+) -> list[str]:
+
+    if chunk_size <= 0:
+        raise ValueError("chunk size must be greater than 0")
+
+    if overlap < 0:
+        raise ValueError("overlap must be equal or greater than 0")
+
+    if semantic:
+        text = text.strip()
+        if len(text) == 0:
+            return []
+
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+
+        sentences = [stripped for sentence in sentences if len(stripped := sentence.strip()) != 0]
+
+        chunks = [
+            " ".join(sentences[i : i + chunk_size])
+            for i in range(0, len(sentences), chunk_size - overlap)
+            if len(sentences[i : i + chunk_size]) > overlap
+        ]
+    else:
+        words = text.split()
+        chunks = [
+            " ".join(words[i : i + chunk_size])
+            for i in range(0, len(words), chunk_size - overlap)
+        ]
+
+    return chunks
