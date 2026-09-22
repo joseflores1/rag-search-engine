@@ -19,6 +19,16 @@ class SearchResult(TypedDict):
     metadata: dict[str, Any]
 
 
+class RRFSearchResult(TypedDict):
+    id: int
+    title: str
+    description: str
+    rrf_score: float
+    bm25_rank: int
+    chunk_rank: int
+    rerank_score: float
+
+
 class GoldenTestCase(TypedDict):
     query: str
     relevant_docs: list[str]
