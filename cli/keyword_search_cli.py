@@ -79,7 +79,7 @@ def main() -> None:
             print("Searching for:", args.query)
             results = search_command(args.query)
             for i, res in enumerate(results, 1):
-                print(f"{i}. ({res['id']}) {res['title']}")
+                print(f"{i}. ({res["id"]}) {res["title"]}")
 
         case "build":
             print("Building inverted index...")
@@ -117,7 +117,7 @@ def main() -> None:
             print("Searching for:", args.query)
             results = bm25_search_command(args.query, args.limit)
             for i, res in enumerate(results, 1):
-                print(f"{i}. ({res['id']}) {res['title']} - Score: {res['score']:.2f}")
+                print(f"{i}. ({res["id"]}) {res["title"]} - Score: {res["score"]:.2f}")
         case _:
             parser.print_help()
 

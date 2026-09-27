@@ -117,8 +117,8 @@ def main() -> None:
         case "search":
             results = semantic_search(args.query, args.limit)
             for i, res in enumerate(results, 1):
-                print(f"{i}. {res['title']} (score: {res['score']:.4f})")
-                print(f"  {res['description'][:100]}\n")
+                print(f"{i}. {res["title"]} (score: {res["score"]:.4f})")
+                print(f"  {res["description"][:100]}\n")
         case "chunk":
             chunk_text(args.text, False, args.chunk_size, args.overlap)
         case "semantic_chunk":
@@ -131,8 +131,8 @@ def main() -> None:
             print(f"Query: {result["query"]}")
             print("Results:")
             for i, res in enumerate(result["results"], 1):
-                print(f"\n{i}. {res['title']} (score: {res['score']:.4f})")
-                print(f"   {res['document']}...")
+                print(f"\n{i}. {res["title"]} (score: {res["score"]:.4f})")
+                print(f"   {res["document"]}...")
         case _:
             parser.print_help()
 
