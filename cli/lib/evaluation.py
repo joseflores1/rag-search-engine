@@ -1,12 +1,9 @@
 import json
-import os
 import re
 from collections.abc import Sequence
 from typing import TypedDict
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
+from .client import get_client
 from .hybrid_search import HybridSearch
 from .search_utils import (
     SearchResult,
@@ -28,14 +25,6 @@ class EvaluationSummary(TypedDict):
     limit: int
     results: dict[str, QueryEvaluationResult]
 
-
-load_dotenv()
-api_key = os.getenv("OPENROUTER_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENROUTER_API_KEY environment variable not set")
-
-client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
-model = "openrouter/free"
 
 _EVALUATION_SCORE_PATTERN = re.compile(r"^[0-3]$")
 
@@ -105,9 +94,7 @@ def evaluate_command(limit: int = 5) -> EvaluationSummary:
 
 
 def llm_judge_results(query: str, results: Sequence[SearchResult]) -> list[int]:
-    if not api_key:
-        print("Warning: OPENROUTER_API_KEY not found. Skipping LLM evaluation.")
-        return [0] * len(results)
+    client, model = get_client()
 
     formatted_results: list[str] = []
     for i, result in enumerate(results, 1):

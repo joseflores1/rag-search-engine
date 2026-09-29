@@ -1,19 +1,11 @@
-import os
 from typing import Literal
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
-load_dotenv()
-api_key = os.getenv("OPENROUTER_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENROUTER_API_KEY environment variable not set")
-
-client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
-model = "openrouter/free"
+from .client import get_client
 
 
 def spell_correct(query: str) -> str:
+    client, model = get_client()
+
     prompt = f"""Fix any spelling errors in the user-provided movie search query below.
     Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
     Preserve punctuation and capitalization unless a change is required for a typo fix.
@@ -30,6 +22,8 @@ def spell_correct(query: str) -> str:
 
 
 def rewrite_query(query: str) -> str:
+    client, model = get_client()
+
     prompt = f"""Rewrite the user-provided movie search query below to be more specific and searchable.
 
     Consider:
@@ -58,6 +52,8 @@ def rewrite_query(query: str) -> str:
 
 
 def expand_query(query: str) -> str:
+    client, model = get_client()
+
     prompt = f"""Expand the user-provided movie search query below with related terms.
 
     Add synonyms and related concepts that might appear in movie descriptions.

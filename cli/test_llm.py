@@ -1,17 +1,8 @@
-import os
-
-from dotenv import load_dotenv
-from openai import OpenAI
-
-load_dotenv()
-api_key = os.environ.get("OPENROUTER_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENROUTER_API_KEY environment variable not set")
+from lib.client import get_client
 
 
 def main() -> None:
-    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
-    model = "openrouter/free"
+    client, model = get_client()
     prompt = "Why is Boot.dev such a great place to learn about RAG? Use one paragraph maximum."
 
     response = client.chat.completions.create(

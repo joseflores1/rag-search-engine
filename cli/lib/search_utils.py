@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any, TypedDict
 
-from dotenv import load_dotenv
+from dotenv import get_key
 
 
 class Movie(TypedDict):
@@ -55,8 +55,7 @@ CHUNK_EMBEDDINGS_PATH = os.path.join(CACHE_DIR, "chunk_embeddings.npy")
 CHUNK_METADATA_PATH = os.path.join(CACHE_DIR, "chunk_metadata.json")
 
 ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
-load_dotenv(ENV_PATH)
-HF_TOKEN = os.getenv("HF_TOKEN")
+HF_TOKEN = get_key(ENV_PATH, "HF_TOKEN")
 
 
 def load_movies() -> list[Movie]:

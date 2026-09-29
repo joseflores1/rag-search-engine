@@ -1,13 +1,10 @@
 import json
-import os
 import re
 from collections.abc import Sequence
 from time import sleep
 from typing import Literal, NotRequired
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
+from .client import get_client
 from .search_utils import SearchResult
 
 
@@ -17,20 +14,14 @@ class RerankedSearchResult(SearchResult, total=False):
     crossencoder_score: NotRequired[float]
 
 
-load_dotenv()
-api_key = os.getenv("OPENROUTER_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENROUTER_API_KEY environment variable not set")
-
-client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
-model = "openrouter/free"
-
 _RERANK_SCORE_PATTERN = re.compile(r"^(?:[0-9]|10)$")
 
 
 def llm_rerank_individual(
     query: str, documents: Sequence[SearchResult], limit: int = 5
 ) -> list[RerankedSearchResult]:
+    client, model = get_client()
+
     scored_docs: list[RerankedSearchResult] = []
 
     for doc in documents:
@@ -67,6 +58,8 @@ def llm_rerank_individual(
 def llm_rerank_batch(
     query: str, documents: Sequence[SearchResult], limit: int = 5
 ) -> list[RerankedSearchResult]:
+    client, model = get_client()
+
     if not documents:
         return []
 
